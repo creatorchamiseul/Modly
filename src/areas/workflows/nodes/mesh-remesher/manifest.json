@@ -39,7 +39,7 @@
           "id": "target_count",
           "label": "Target Face Count",
           "type": "int",
-          "default": 0,
+          "default": 50000,
           "min": 0,
           "max": 2000000,
           "tooltip": "Desired total face count. When above 0, the remesh targets this count (exact when reducing; approximate when increasing). Set 0 to use Target Edge Length instead."
