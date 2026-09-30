@@ -5,7 +5,7 @@ python-multipart==0.0.20
 
 # Agent & MCP
 httpx>=0.27.0
-mcp>=1.0.0
+mcp>=1.0.0,<2
 
 # Mesh processing (optimize + export endpoints)
 trimesh>=4.5.0

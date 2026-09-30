@@ -35,6 +35,7 @@
 
 **안정성 수정**
 - `api/routers/extensions.py`, `api/routers/generation.py` - 생성 작업이 진행 중일 때는 확장 리로드가 실행 중인 작업을 중단시키지 않도록 거부(409) 처리
+- `api/requirements.txt` - MCP SDK(mcp)를 1.x로 상한 고정 (MCP 서버 스크립트 호환)
 **설정/문서**
 - `.gitignore` (+4) — `data/`, `.cache/` 추가 (런타임 데이터 커밋 방지)
 - `package-lock.json` (±2) — 버전 필드 정합성 수정 (0.4.1 → 0.4.2)
