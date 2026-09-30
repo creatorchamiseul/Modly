@@ -18,7 +18,7 @@
 
 ## 원본과의 차이 (vs. upstream)
 
-비교 기준: [lightningpixel/modly](https://github.com/lightningpixel/modly) `main` (커밋 `1476fd0`). 아래 **9개 파일**만 수정/추가했습니다.
+비교 기준: [lightningpixel/modly](https://github.com/lightningpixel/modly) `main` (커밋 `1476fd0`). 아래 파일들을 수정/추가했습니다.
 
 **앱 코드 (최소 수정)**
 - `electron/main/index.ts` (+7) — `MODLY_USER_DATA_DIR` 환경변수가 있으면 앱 데이터 경로를 그 폴더로 고정하는 옵션 추가 (미설정 시 원본과 동일 동작)
@@ -33,6 +33,8 @@
 **리메쉬 기능 확장 (신규)**
 - src/areas/workflows/nodes/mesh-remesher/processor.py, manifest.json — Remesh 노드에 Target Face Count(총 면 수) 옵션 추가: 0 = 기존 엣지 길이 방식, 값 입력 시 리메쉬 후 정확히 그 면 수로 정리
 
+**안정성 수정**
+- `api/routers/extensions.py`, `api/routers/generation.py` - 생성 작업이 진행 중일 때는 확장 리로드가 실행 중인 작업을 중단시키지 않도록 거부(409) 처리
 **설정/문서**
 - `.gitignore` (+4) — `data/`, `.cache/` 추가 (런타임 데이터 커밋 방지)
 - `package-lock.json` (±2) — 버전 필드 정합성 수정 (0.4.1 → 0.4.2)

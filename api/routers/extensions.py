@@ -13,6 +13,16 @@ async def reload_extensions(payload: dict | None = Body(default=None)):
     Unloads all currently loaded generators before reloading.
     """
     from services.generator_registry import generator_registry
+    from routers.generation import has_active_jobs
+
+    # Reloading stops all extension subprocesses, which would kill any
+    # generation that is currently running - refuse instead.
+    if has_active_jobs():
+        raise HTTPException(
+            status_code=409,
+            detail="A generation is currently running. Reloading now would stop it - wait for the run to finish, then try again.",
+        )
+
     validation_capability = None
     if isinstance(payload, dict):
         candidate = payload.get("validationCapability")

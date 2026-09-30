@@ -26,6 +26,10 @@ _completed_at: Dict[str, float] = {}
 _JOB_TTL = 1800  # purge terminal jobs after 30 minutes
 
 
+def has_active_jobs() -> bool:
+    """True while any generation job is pending or running."""
+    return any(job.status in ("pending", "running") for job in _jobs.values())
+
 def _purge_old_jobs() -> None:
     cutoff = time.monotonic() - _JOB_TTL
     stale = [jid for jid, t in _completed_at.items() if t < cutoff]
