@@ -48,13 +48,14 @@ def main() -> None:
 
     mode               = str(params.get("mode", "triangle"))
     target_edge_length = float(params.get("target_edge_length", 0.0))
+    target_count = int(float(params.get("target_count", 0) or 0))
 
     out_dir = Path(workspace_dir) / "Workflows"
     out_dir.mkdir(parents=True, exist_ok=True)
     from time import time
     out_path = str(out_dir / f"mesh-remesher-{int(time() * 1000)}.glb")
 
-    log(f"Mode: {mode}, edge length: {target_edge_length or 'auto'}")
+    log(f"Mode: {mode}, edge length: {target_edge_length or 'auto'}, target count: {target_count or 'off'}")
 
     if mode == "none":
         progress(50, "Passing through…")
@@ -78,6 +79,12 @@ def main() -> None:
         geom  = trimesh.util.concatenate(geoms) if len(geoms) > 1 else geoms[0]
     else:
         geom = loaded
+
+    if target_count > 0 and mode != "none":
+        area = float(geom.area) if geom.area else 0.0
+        if area > 0:
+            target_edge_length = (area / (0.4325 * target_count * 1.15)) ** 0.5
+            log(f"Target count {target_count}: area {area:.6f} -> edge length {target_edge_length:.6f}")
 
     tmp_dir = tempfile.mkdtemp()
     try:
@@ -111,6 +118,19 @@ def main() -> None:
             except Exception:
                 pass
 
+        if target_count > 0 and mode != "none":
+            current_faces = int(ms.current_mesh().face_number())
+            if current_faces > target_count:
+                try:
+                    ms.meshing_decimation_quadric_edge_collapse(
+                        targetfacenum=int(target_count),
+                        qualitythr=0.3,
+                        preserveboundary=True,
+                        optimalplacement=True,
+                    )
+                except Exception:
+                    ms.meshing_decimation_quadric_edge_collapse(targetfacenum=int(target_count))
+                log(f"Decimated {current_faces} -> {int(ms.current_mesh().face_number())} faces")
         progress(80, "Exporting…")
         ms.save_current_mesh(ply_out)
         result = trimesh.load(ply_out, force="mesh")

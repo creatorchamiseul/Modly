@@ -18,7 +18,7 @@
 
 ## 원본과의 차이 (vs. upstream)
 
-비교 기준: [lightningpixel/modly](https://github.com/lightningpixel/modly) `main` (커밋 `1476fd0`). 아래 **7개 파일만** 수정했습니다.
+비교 기준: [lightningpixel/modly](https://github.com/lightningpixel/modly) `main` (커밋 `1476fd0`). 아래 **9개 파일**만 수정/추가했습니다.
 
 **앱 코드 (최소 수정)**
 - `electron/main/index.ts` (+7) — `MODLY_USER_DATA_DIR` 환경변수가 있으면 앱 데이터 경로를 그 폴더로 고정하는 옵션 추가 (미설정 시 원본과 동일 동작)
@@ -29,6 +29,9 @@
 - 번들 파이썬 자동 다운로드 단계 추가 (원본 런처에는 없어서 첫 설정이 실패할 수 있음)
 - Electron 바이너리 자동 복구 단계 추가
 - 실행 방식: `npm run preview`(매번 재빌드 포함) → **직접 실행**으로 변경 (빠르고, 콘솔 창이 바로 닫힘)
+
+**리메쉬 기능 확장 (신규)**
+- src/areas/workflows/nodes/mesh-remesher/processor.py, manifest.json — Remesh 노드에 Target Face Count(총 면 수) 옵션 추가: 0 = 기존 엣지 길이 방식, 값 입력 시 리메쉬 후 정확히 그 면 수로 정리
 
 **설정/문서**
 - `.gitignore` (+4) — `data/`, `.cache/` 추가 (런타임 데이터 커밋 방지)
