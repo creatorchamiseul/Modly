@@ -1,5 +1,5 @@
 import { app, BrowserWindow, shell, session } from 'electron'
-import { join } from 'path'
+import { join, resolve } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { setupIpcHandlers } from './ipc-handlers'
 import { PythonBridge } from './python-bridge'
@@ -75,6 +75,12 @@ function createWindow(): void {
 }
 
 app.setName('Modly')
+
+// Local deployment option: keep every runtime file (models, venv, logs,
+// extensions, settings) inside a chosen folder instead of the OS app-data
+// directory. Set MODLY_USER_DATA_DIR before launching to activate it.
+const userDataOverride = process.env['MODLY_USER_DATA_DIR']
+if (userDataOverride) app.setPath('userData', resolve(userDataOverride))
 
 process.on('uncaughtException', (err) => {
   if ((err as NodeJS.ErrnoException).code === 'EPIPE') return

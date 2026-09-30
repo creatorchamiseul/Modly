@@ -333,7 +333,11 @@ export function setupIpcHandlers(pythonBridge: PythonBridge, getWindow: WindowGe
   // Setup handlers — skipped in dev (uses .venv instead of python-embed)
   ipcMain.handle('setup:check', async () => {
     const userData = app.getPath('userData')
-    const defaultDataDir = join(app.getPath('documents'), 'Modly')
+    // Portable deployments set MODLY_USER_DATA_DIR; suggest the app's own data
+    // folder as the default so everything stays together in one place.
+    const defaultDataDir = process.env['MODLY_USER_DATA_DIR']
+      ? userData
+      : join(app.getPath('documents'), 'Modly')
     return {
       needed: checkSetupNeeded(userData),
       defaultDataDir,
