@@ -1,6 +1,8 @@
 # Vendored from image-to-3dlab (https://github.com/Bingeljell/image-to-3dlab),
 # scripts/blender_retopo_bake.py, v0.3.5 — Apache-2.0. Adapted for Modly's
 # mesh-finisher node; run as: blender --background --python <this> -- IN OUT [faces] [size] [...]
+# Modly adaptation: after the decimation fallback, micro loose parts are dropped and
+# small holes are filled, so the exported skin reads as one closed surface in a viewer.
 
 """Quad-retopologise a generated mesh and transfer its texture onto the clean topology.
 
@@ -266,6 +268,58 @@ def main() -> int:
             f"{target_faces:,}). Writing this would be worse than the input, so it fails "
             "rather than producing a file that looks retopologised and is not."
         )
+
+    # --- one skin, no confetti (Modly adaptation) --------------------------------------
+    # The voxel pass leaves distant shards as separate micro-parts, and aggressive
+    # decimation can open hairline holes. Both render as floating specks and see-through
+    # pinholes in a game viewer. Keep the parts that carry the model, close what is open,
+    # then weld and re-orient before the unwrap, so the UVs and the transfer bake cover
+    # the cleaned surface.
+    import bmesh
+
+    def _boundary_edges(mesh_data):
+        bm = bmesh.new()
+        bm.from_mesh(mesh_data)
+        count = sum(1 for edge in bm.edges if len(edge.link_faces) == 1)
+        bm.free()
+        return count
+
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.mesh.delete_loose(use_verts=True, use_edges=True, use_faces=False)
+    bpy.ops.mesh.separate(type="LOOSE")
+    bpy.ops.object.mode_set(mode="OBJECT")
+    parts = [o for o in bpy.context.scene.objects
+             if o.type == "MESH" and o.name.startswith("RETOPO")]
+    parts.sort(key=lambda o: len(o.data.polygons), reverse=True)
+    keep_cutoff = max(64, len(parts[0].data.polygons) // 500)
+    dropped = 0
+    for part in parts[1:]:
+        if len(part.data.polygons) < keep_cutoff:
+            bpy.data.objects.remove(part, do_unlink=True)
+            dropped += 1
+    parts = [o for o in bpy.context.scene.objects
+             if o.type == "MESH" and o.name.startswith("RETOPO")]
+    bpy.ops.object.select_all(action="DESELECT")
+    for part in parts:
+        part.select_set(True)
+    bpy.context.view_layer.objects.active = parts[0]
+    if len(parts) > 1:
+        bpy.ops.object.join()
+    retopo = bpy.context.view_layer.objects.active
+    retopo.name = "RETOPO"
+
+    boundary_before = _boundary_edges(retopo.data)
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.mesh.fill_holes(sides=0)
+    bpy.ops.mesh.remove_doubles(threshold=1e-6)
+    bpy.ops.mesh.dissolve_degenerate()
+    bpy.ops.mesh.normals_make_consistent(inside=False)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    boundary_after = _boundary_edges(retopo.data)
+    print(f"RETOPO:: cleanup: kept {len(parts)} part(s), dropped {dropped}, "
+          f"boundary edges {boundary_before} -> {boundary_after}")
 
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
