@@ -65,3 +65,18 @@
 
 - **MIT License** — [LICENSE](LICENSE) 참고 (원본 저작권 표시 유지)
 - 포크/재배포 시 원본 크레딧(`Based on Modly by Lightning Pixel`)을 유지해야 합니다.
+
+---
+
+## 게임 레디 마감 노드 (Finish — Mesh Finisher)
+
+워크플로우에 **`Mesh Finisher` → `Finish (Game-Ready)`** 노드가 추가되었습니다. 생성된 하이폴리 자산을 게임에 넣을 수 있는 상태로 마감합니다. ([image-to-3dlab](https://github.com/Bingeljell/image-to-3dlab)의 Finish 체인을 Modly 노드로 포팅 — Apache-2.0, 제작자 Bingeljell, 자세한 내용은 노드 폴더의 파일 헤더 참고)
+
+1. **리토폴로지** — 웰드 → 복셀 리메쉬 → QuadriFlow(거부되면 감면 폴백) → 스마트 UV → 원본 텍스처 전이 (Blender)
+2. **Pixel Match** — Source Photo 슬롯에 사진을 연결하면 실루엣으로 카메라를 자동 정합해, 사진이 보는 표면에 **실제 픽셀**을 입힙니다. 글자·로고·얼굴이 "비슷하게 다시 그려진" 결과로 뭉개지지 않습니다. (numpy+Pillow, GPU 불필요)
+3. **디테일 베이크** — 원본 하이폴리에서 노멀맵 + 메탈릭-러프니스 맵 전이 (Blender)
+4. **텍스처 압축** — JPEG 재인코딩 (컬러 2048, 데이터맵 1024, 품질 90) — 실측: **292MB → 7.4MB**
+
+**사용법**: 이미지→3D 생성 체인 뒤에 `Finish (Game-Ready)` 노드를 붙이고, `Source Photo` 슬롯에 같은 입력 이미지를 연결하세요. 파라미터: Target Face Count(기본 40,000) · Voxel Size(0.004) · Atlas Size(2048) · Pixel Match(auto/off) · Bake Surface Detail · Compress Textures. `data\workflows`의 **"샘플 03 · 이미지→3D→게임레디 마감"** 을 참고하세요.
+
+**Blender 4.2+ 필요 (리토폴로지·베이크 단계)**: 자동으로 아래를 찾습니다 — `MODLY_BLENDER` 환경변수 → 앱 폴더의 `.tools\blender-*\blender.exe`(이 저장소에서는 `D:\modly\.tools\blender-4.5.14-windows-x64\`) → PATH → `C:\Program Files\Blender Foundation\`. Blender는 [blender.org](https://www.blender.org/download/)에서 무료로 받습니다 (자동 설치하지 않음 — 포터블 .zip을 `.tools`에 풀어두면 끝).

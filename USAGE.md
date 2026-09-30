@@ -1,4 +1,4 @@
-# Modly 사용법 (Portable Build)
+﻿# Modly 사용법 (Portable Build)
 
 > 원본: [Modly](https://github.com/lightningpixel/modly) by Lightning Pixel (MIT License)
 > 이 저장소는 원본 기반의 포터블 빌드입니다 — 모든 데이터가 압축 푼 폴더 안에서 동작합니다.
@@ -81,6 +81,15 @@
 | 로그 확인 | `data\logs\modly.log`, `data\logs\runtime.log` |
 | 완전 초기화 | `data` + `node_modules` 삭제 후 재실행 |
 
+## 7. 게임 레디 마감 (Finish 노드)
+
+`Mesh Finisher → Finish (Game-Ready)` 노드가 내장되어 있습니다 ([image-to-3dlab](https://github.com/Bingeljell/image-to-3dlab)의 Finish 체인 포팅).
+
+- 생성 → (Refine) → **Finish** → Add to Scene 순서로 연결하세요.
+- **Source Photo** 슬롯에 원본 이미지를 연결하면 **Pixel Match**: 글자·로고가 원본 픽셀 그대로 살아납니다 (카메라 자동 정합, GPU 불필요).
+- 원본 하이폴리 → 리토폴로지(기본 40,000면) + 텍스처 전이 + 노멀/메탈릭-러프니스 베이크 + 압축이 한 번에 실행됩니다 (실측: 292MB → 7.4MB).
+- **Blender 4.2+** 가 필요합니다 — blender.org에서 포터블 .zip을 받아 앱 폴더의 `.tools` 에 풀거나, 환경변수 `MODLY_BLENDER` 에 blender.exe 경로를 지정하세요.
+- 샘플: **샘플 03 · 이미지→3D→게임레디 마감** 워크플로우
 ## 크레딧 / 라이선스
 
 - **Based on [Modly](https://github.com/lightningpixel/modly) by [Lightning Pixel](https://github.com/lightningpixel)**

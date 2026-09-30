@@ -10,6 +10,7 @@ mcp>=1.0.0,<2
 # Mesh processing (optimize + export endpoints)
 trimesh>=4.5.0
 pymeshlab>=2023.12
+Pillow>=10.3
 
 # Model downloads (HuggingFace)
 huggingface_hub>=0.27.0

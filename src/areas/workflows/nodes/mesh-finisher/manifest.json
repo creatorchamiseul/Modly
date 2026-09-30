@@ -1,0 +1,105 @@
+{
+  "id": "mesh-finisher",
+  "name": "Mesh Finisher",
+  "type": "process",
+  "entry": "processor.py",
+  "version": "1.0.0",
+  "author": "Modly fork (Finish ported from image-to-3dlab by Bingeljell, Apache-2.0)",
+  "description": "Turn a generated high-poly asset into a game-ready one: retopologise (voxel remesh + decimate), transfer the texture, re-project the source photo's real pixels (Pixel Match), bake normal + metallic-roughness detail from the original, then compress textures. Needs Blender 4.2 or newer for the retopology and bake stages.",
+  "nodes": [
+    {
+      "id": "finish",
+      "name": "Finish (Game-Ready)",
+      "input": "mesh",
+      "inputs": ["mesh", "image"],
+      "input_labels": ["Mesh", "Source Photo"],
+      "output": "mesh",
+      "params_schema": [
+        {
+          "id": "target_faces",
+          "label": "Target Face Count",
+          "type": "int",
+          "default": 40000,
+          "min": 1000,
+          "max": 200000,
+          "tooltip": "Low-poly target the retopologised mesh lands on (decimation is measured against triangles, so the result is close to this). Too few loses the silhouette; too many re-fragments the texture atlas."
+        },
+        {
+          "id": "voxel_fraction",
+          "label": "Voxel Size (fraction)",
+          "type": "float",
+          "default": 0.004,
+          "min": 0.0,
+          "max": 0.05,
+          "step": 0.001,
+          "tooltip": "Voxel remesh cell size as a fraction of the asset's largest side. Rebuilds one watertight surface before decimation — decimating the raw generated mesh shatters thin geometry. 0 skips the remesh."
+        },
+        {
+          "id": "texture_size",
+          "label": "Atlas Size",
+          "type": "select",
+          "default": 2048,
+          "options": [
+            { "value": 1024, "label": "1024 px" },
+            { "value": 2048, "label": "2048 px" },
+            { "value": 4096, "label": "4096 px" }
+          ],
+          "tooltip": "Size of the texture atlas the original texture is transferred onto."
+        },
+        {
+          "id": "pixel_match",
+          "label": "Pixel Match",
+          "type": "select",
+          "default": "auto",
+          "options": [
+            { "value": "auto", "label": "Auto (when a Source Photo is connected)" },
+            { "value": "off", "label": "Off" }
+          ],
+          "tooltip": "Keeps the source photo's real pixels: fits a camera to the mesh and paints every surface it can see, so text, logos and faces come through exactly instead of as a redrawn lookalike."
+        },
+        {
+          "id": "bake_detail",
+          "label": "Bake Surface Detail",
+          "type": "select",
+          "default": "yes",
+          "options": [
+            { "value": "yes", "label": "Yes" },
+            { "value": "no", "label": "No" }
+          ],
+          "tooltip": "Bake a normal map (and the original's metallic-roughness map) from the high-poly onto the finish, so it lights like the dense original."
+        },
+        {
+          "id": "compress",
+          "label": "Compress Textures",
+          "type": "select",
+          "default": "yes",
+          "options": [
+            { "value": "yes", "label": "Yes" },
+            { "value": "no", "label": "No" }
+          ],
+          "tooltip": "Re-encode embedded textures (colour capped at the atlas size, maps at 1024, JPEG quality 90). Large size drop; stays core glTF so every converter reads it."
+        },
+        {
+          "id": "metallic",
+          "label": "Metallic (fallback)",
+          "type": "float",
+          "default": 0.25,
+          "min": 0.0,
+          "max": 1.0,
+          "step": 0.05,
+          "tooltip": "Flat metallic factor used while the bake is off or when no metallic-roughness map could be transferred."
+        },
+        {
+          "id": "roughness",
+          "label": "Roughness (fallback)",
+          "type": "float",
+          "default": 0.65,
+          "min": 0.0,
+          "max": 1.0,
+          "step": 0.05,
+          "tooltip": "Flat roughness factor used while the bake is off or when no metallic-roughness map could be transferred."
+        }
+      ]
+    }
+  ]
+}

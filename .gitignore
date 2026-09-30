@@ -47,3 +47,4 @@ launch.bat
 # Local runtime data (portable installs keep models/caches inside the repo folder)
 data/
 .cache/
+.tools/
