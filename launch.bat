@@ -73,8 +73,8 @@ if not exist "node_modules\electron\dist\electron.exe" (
     exit /b 1
 )
 
-:: Launch (skip the implicit rebuild when out/ already exists - the check above builds when missing)
+:: Launch (direct Electron start - fast, and the console window closes right away)
 echo Launching Modly...
-call npm run preview -- --skipBuild
+start "" "%~dp0node_modules\electron\dist\electron.exe" "%~dp0."
 
 endlocal
