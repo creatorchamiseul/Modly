@@ -1,0 +1,149 @@
+{
+  "id": "1edee7df-3e43-4c28-8c2a-012eca209ef4",
+  "name": "샘플 03 · 이미지→3D→게임레디 마감 (리토포+Pixel Match)",
+  "description": "Image -> Trellis.2 Generate -> Finish (retopologise, Pixel Match, detail bake, compress) -> Add to Scene",
+  "nodes": [
+    {
+      "id": "4a3f5c90-dc16-4638-95f6-b5c8fd9945cc",
+      "type": "imageNode",
+      "position": {
+        "x": -384.71560195579934,
+        "y": 251.28718120189177
+      },
+      "data": {
+        "enabled": true,
+        "params": {},
+        "showInGenerate": true
+      },
+      "measured": {
+        "width": 288,
+        "height": 479
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "e509325f-b0a5-433c-872e-5b5cbe7bd02b",
+      "type": "extensionNode",
+      "position": {
+        "x": 250,
+        "y": 400
+      },
+      "data": {
+        "extensionId": "trellis2/refine",
+        "enabled": true,
+        "params": {},
+        "showInGenerate": true
+      },
+      "measured": {
+        "width": 294,
+        "height": 341
+      },
+      "selected": false
+    },
+    {
+      "id": "f44b34b2-db45-47a5-9a16-6a7c8415b9ee",
+      "type": "outputNode",
+      "position": {
+        "x": 798.7441955532113,
+        "y": 643.9351370444996
+      },
+      "data": {
+        "enabled": true,
+        "params": {}
+      },
+      "measured": {
+        "width": 224,
+        "height": 115
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "17d20bde-18a1-459e-9c3c-c6e13d468fd0",
+      "type": "extensionNode",
+      "position": {
+        "x": 253.8262562976987,
+        "y": 23.00240379680379
+      },
+      "data": {
+        "extensionId": "trellis2/generate",
+        "enabled": true,
+        "params": {}
+      },
+      "measured": {
+        "width": 294,
+        "height": 340
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "ace569ac-b00d-4548-9684-6aae22df6ea1",
+      "type": "extensionNode",
+      "position": {
+        "x": 248.97914668978643,
+        "y": 797.6182229414937
+      },
+      "data": {
+        "extensionId": "mesh-finisher/finish",
+        "enabled": true,
+        "params": {}
+      },
+      "measured": {
+        "width": 385,
+        "height": 411
+      },
+      "selected": true,
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "id": "f2a6e504-291f-4bc2-9fdf-bcdbdd8d9014",
+      "source": "4a3f5c90-dc16-4638-95f6-b5c8fd9945cc",
+      "target": "e509325f-b0a5-433c-872e-5b5cbe7bd02b",
+      "type": "workflowEdge",
+      "targetHandle": "input-0"
+    },
+    {
+      "type": "workflowEdge",
+      "source": "4a3f5c90-dc16-4638-95f6-b5c8fd9945cc",
+      "target": "17d20bde-18a1-459e-9c3c-c6e13d468fd0",
+      "targetHandle": "input-0",
+      "id": "xy-edge__4a3f5c90-dc16-4638-95f6-b5c8fd9945cc-17d20bde-18a1-459e-9c3c-c6e13d468fd0input-0"
+    },
+    {
+      "type": "workflowEdge",
+      "source": "17d20bde-18a1-459e-9c3c-c6e13d468fd0",
+      "sourceHandle": "output",
+      "target": "e509325f-b0a5-433c-872e-5b5cbe7bd02b",
+      "targetHandle": "input-1",
+      "id": "xy-edge__17d20bde-18a1-459e-9c3c-c6e13d468fd0output-e509325f-b0a5-433c-872e-5b5cbe7bd02binput-1"
+    },
+    {
+      "type": "workflowEdge",
+      "source": "e509325f-b0a5-433c-872e-5b5cbe7bd02b",
+      "sourceHandle": "output",
+      "target": "ace569ac-b00d-4548-9684-6aae22df6ea1",
+      "targetHandle": "input-0",
+      "id": "xy-edge__e509325f-b0a5-433c-872e-5b5cbe7bd02boutput-ace569ac-b00d-4548-9684-6aae22df6ea1input-0"
+    },
+    {
+      "type": "workflowEdge",
+      "source": "4a3f5c90-dc16-4638-95f6-b5c8fd9945cc",
+      "target": "ace569ac-b00d-4548-9684-6aae22df6ea1",
+      "targetHandle": "input-1",
+      "id": "xy-edge__4a3f5c90-dc16-4638-95f6-b5c8fd9945cc-ace569ac-b00d-4548-9684-6aae22df6ea1input-1"
+    },
+    {
+      "type": "workflowEdge",
+      "source": "ace569ac-b00d-4548-9684-6aae22df6ea1",
+      "sourceHandle": "output",
+      "target": "f44b34b2-db45-47a5-9a16-6a7c8415b9ee",
+      "id": "xy-edge__ace569ac-b00d-4548-9684-6aae22df6ea1output-f44b34b2-db45-47a5-9a16-6a7c8415b9ee"
+    }
+  ],
+  "createdAt": "2026-09-30T19:43:13.465Z",
+  "updatedAt": "2026-10-05T19:23:28.175Z"
+}

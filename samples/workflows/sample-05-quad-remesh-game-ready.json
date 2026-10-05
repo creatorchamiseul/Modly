@@ -1,0 +1,146 @@
+{
+  "id": "e80b4e77-07ad-485f-92d4-159d501c7ab0",
+  "name": "샘플 05 · 이미지→3D→쿼드 리메쉬→게임레디 마감 (풀체인)",
+  "description": "Full chain: Image -> Trellis.2 Generate -> Refine (texture) -> Quad Remesh (SDF 50k) -> Game-Ready Finish (retopo, Pixel Match, detail bake, compress) -> Add to Scene",
+  "nodes": [
+    {
+      "id": "808b4fad-5f4f-41fd-978d-3bde92c90ca5",
+      "type": "imageNode",
+      "position": {
+        "x": 250,
+        "y": 40
+      },
+      "data": {
+        "enabled": true,
+        "params": {},
+        "showInGenerate": true
+      }
+    },
+    {
+      "id": "67974692-8c45-4b97-91ed-5f617d9c4ea5",
+      "type": "extensionNode",
+      "position": {
+        "x": 250,
+        "y": 230
+      },
+      "data": {
+        "extensionId": "trellis2/generate",
+        "enabled": true,
+        "params": {},
+        "showInGenerate": true
+      }
+    },
+    {
+      "id": "e1390da1-071c-4ee3-b3ac-4686c67a3534",
+      "type": "extensionNode",
+      "position": {
+        "x": 250,
+        "y": 420
+      },
+      "data": {
+        "extensionId": "trellis2/refine",
+        "enabled": true,
+        "params": {},
+        "showInGenerate": true
+      }
+    },
+    {
+      "id": "c49c2607-fbcd-4421-b456-c57171a9471b",
+      "type": "extensionNode",
+      "position": {
+        "x": 250,
+        "y": 610
+      },
+      "data": {
+        "extensionId": "mesh-remesher/remesh",
+        "enabled": true,
+        "params": {
+          "mode": "sdf",
+          "target_count": 50000,
+          "transfer_texture": "yes"
+        }
+      }
+    },
+    {
+      "id": "a75bd6df-67f2-4fe2-be0b-18a17ddadf14",
+      "type": "extensionNode",
+      "position": {
+        "x": 250,
+        "y": 800
+      },
+      "data": {
+        "extensionId": "mesh-finisher/finish",
+        "enabled": true,
+        "params": {}
+      }
+    },
+    {
+      "id": "27225bad-2227-491b-a702-1036eda9b8af",
+      "type": "outputNode",
+      "position": {
+        "x": 250,
+        "y": 990
+      },
+      "data": {
+        "enabled": true,
+        "params": {}
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "c72c739e-941d-420f-8bf4-d906423fcf11",
+      "source": "808b4fad-5f4f-41fd-978d-3bde92c90ca5",
+      "target": "67974692-8c45-4b97-91ed-5f617d9c4ea5",
+      "type": "workflowEdge",
+      "targetHandle": "input-0"
+    },
+    {
+      "id": "9cdf76b1-22ad-4d90-9db6-ff654377a8fe",
+      "source": "808b4fad-5f4f-41fd-978d-3bde92c90ca5",
+      "target": "e1390da1-071c-4ee3-b3ac-4686c67a3534",
+      "type": "workflowEdge",
+      "targetHandle": "input-0"
+    },
+    {
+      "id": "c460a2ed-dba1-44da-ba8f-4fdc64d7b4c7",
+      "source": "67974692-8c45-4b97-91ed-5f617d9c4ea5",
+      "target": "e1390da1-071c-4ee3-b3ac-4686c67a3534",
+      "type": "workflowEdge",
+      "targetHandle": "input-1",
+      "sourceHandle": "output"
+    },
+    {
+      "id": "b364579b-755e-4036-a588-c811548a755a",
+      "source": "e1390da1-071c-4ee3-b3ac-4686c67a3534",
+      "target": "c49c2607-fbcd-4421-b456-c57171a9471b",
+      "type": "workflowEdge",
+      "targetHandle": "input-0",
+      "sourceHandle": "output"
+    },
+    {
+      "id": "5b576c90-f0f9-437d-94db-f669d99792d3",
+      "source": "c49c2607-fbcd-4421-b456-c57171a9471b",
+      "target": "a75bd6df-67f2-4fe2-be0b-18a17ddadf14",
+      "type": "workflowEdge",
+      "targetHandle": "input-0",
+      "sourceHandle": "output"
+    },
+    {
+      "id": "3d6ac2b6-e565-473f-b46e-9c80a8e61037",
+      "source": "808b4fad-5f4f-41fd-978d-3bde92c90ca5",
+      "target": "a75bd6df-67f2-4fe2-be0b-18a17ddadf14",
+      "type": "workflowEdge",
+      "targetHandle": "input-1"
+    },
+    {
+      "id": "ed6f6816-b742-492d-9f5a-b315aeaa7d29",
+      "source": "a75bd6df-67f2-4fe2-be0b-18a17ddadf14",
+      "target": "27225bad-2227-491b-a702-1036eda9b8af",
+      "type": "workflowEdge",
+      "sourceHandle": "output"
+    }
+  ],
+  "createdAt": "2026-10-05T19:40:53.176Z",
+  "updatedAt": "2026-10-05T19:44:42.821Z"
+}

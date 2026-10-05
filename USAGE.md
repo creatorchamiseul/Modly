@@ -54,6 +54,8 @@
 
 - 고해상도 메시에 텍스처를 입히는 작업은 매우 오래 걸립니다 → 텍스처 앞에 `Optimize Mesh`(20만 면 수준)를 넣으면 훨씬 빠릅니다
 - `Remesh` 노드의 `Target Face Count`로 총 면 수를 직접 지정할 수 있습니다 (기본 50,000 · 0 = 리메쉬 자동)
+- **게임용으로 뽑을 땐**: `Remesh`(SDF 모드 · Target 50,000) → `Finish (Game-Ready)` 순서로 연결하세요 — Blender가 있으면 **100% 쿼드 + 텍스처 재베이크**(스펙클·구멍 자국 자동 제거)로 만들고 진짜 쿼드 OBJ(`_quads.obj`)도 함께 저장됩니다. Blender가 없으면 numpy 폴백(삼각형·텍스처 전이 없음) — 설치법은 7장
+- 검증된 샘플: `samples/workflows/`의 **샘플 04**(이미지→쿼드 리메쉬) · **샘플 05**(쿼드 리메쉬 + 게임레디 마감) — Workflows 탭 → Import로 불러오기
 - 첫 생성은 모델 로딩 때문에 느릴 수 있습니다 (이후 빨라짐)
 
 ### 텍스트 → 3D (커뮤니티 확장)
@@ -89,7 +91,9 @@
 - **Source Photo** 슬롯에 원본 이미지를 연결하면 **Pixel Match**: 글자·로고가 원본 픽셀 그대로 살아납니다 (카메라 자동 정합, GPU 불필요).
 - 원본 하이폴리 → 리토폴로지(기본 40,000면) + 텍스처 전이 + 노멀/메탈릭-러프니스 베이크 + 압축이 한 번에 실행됩니다 (실측: 292MB → 7.4MB).
 - **Blender 4.2+** 가 필요합니다 — blender.org에서 포터블 .zip을 받아 앱 폴더의 `.tools` 에 풀거나, 환경변수 `MODLY_BLENDER` 에 blender.exe 경로를 지정하세요.
-- 샘플: **샘플 03 · 이미지→3D→게임레디 마감** 워크플로우
+- 리토폴로지 후 떠다니는 파편은 자동 제거·재웰드됩니다.
+- `Remesh` 노드와 조합하면 **쿼드 메쉬 + 클린 텍스처**까지 한 체인으로 마감됩니다 (쿼드 리메쉬 + 마감 풀체인 = **샘플 05**).
+- 샘플: `samples/workflows/`의 **샘플 03**(게임레디 마감) · **샘플 05**(쿼드 리메쉬+마감) — Workflows 탭 → Import
 ## 크레딧 / 라이선스
 
 - **Based on [Modly](https://github.com/lightningpixel/modly) by [Lightning Pixel](https://github.com/lightningpixel)**

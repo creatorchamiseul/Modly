@@ -1,8 +1,6 @@
 node_modules/
 out/
 dist/
-install.bat
-launch.bat
 
 # Generated at build time by scripts/download-python-embed.js
 resources/python-embed/
@@ -40,9 +38,7 @@ Thumbs.db
 # TypeScript incremental build output
 *.tsbuildinfo
 
-# Local dev helpers
-install.bat
-launch.bat
+# Note: install.bat / launch.bat are tracked on purpose (portable entry points) — do not re-add to ignore
 
 # Local runtime data (portable installs keep models/caches inside the repo folder)
 data/

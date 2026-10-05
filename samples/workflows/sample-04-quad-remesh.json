@@ -1,0 +1,118 @@
+{
+  "id": "8a461554-6fc8-49e7-8b2d-a1b5f289506a",
+  "name": "샘플 04 · 이미지→3D→쿼드 리메쉬 (SDF Quad 50k · 텍스처 베이크)",
+  "description": "Image -> Trellis.2 Generate -> Refine (texture) -> Quad Remesh (SDF quad 50k, texture bake) -> Add to Scene",
+  "nodes": [
+    {
+      "id": "ae7dce81-09ae-4141-b2fb-87afd1522e1b",
+      "type": "imageNode",
+      "position": {
+        "x": 250,
+        "y": 40
+      },
+      "data": {
+        "enabled": true,
+        "params": {},
+        "showInGenerate": true
+      }
+    },
+    {
+      "id": "f8d65666-4c06-470f-adde-1a82bab9f439",
+      "type": "extensionNode",
+      "position": {
+        "x": 250,
+        "y": 230
+      },
+      "data": {
+        "extensionId": "trellis2/generate",
+        "enabled": true,
+        "params": {},
+        "showInGenerate": true
+      }
+    },
+    {
+      "id": "bbf141ff-3383-4319-ba0f-9b3b422f0fa8",
+      "type": "extensionNode",
+      "position": {
+        "x": 250,
+        "y": 420
+      },
+      "data": {
+        "extensionId": "trellis2/refine",
+        "enabled": true,
+        "params": {},
+        "showInGenerate": true
+      }
+    },
+    {
+      "id": "2deb870a-a45a-4371-831d-949a4061f342",
+      "type": "extensionNode",
+      "position": {
+        "x": 250,
+        "y": 610
+      },
+      "data": {
+        "extensionId": "mesh-remesher/remesh",
+        "enabled": true,
+        "params": {
+          "mode": "sdf",
+          "target_count": 50000,
+          "transfer_texture": "yes"
+        }
+      }
+    },
+    {
+      "id": "4414cebe-ba88-42f9-aa8a-dc53208bc13b",
+      "type": "outputNode",
+      "position": {
+        "x": 250,
+        "y": 800
+      },
+      "data": {
+        "enabled": true,
+        "params": {}
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "32e3dae7-a610-4e8f-a338-93780d883783",
+      "source": "ae7dce81-09ae-4141-b2fb-87afd1522e1b",
+      "target": "f8d65666-4c06-470f-adde-1a82bab9f439",
+      "type": "workflowEdge",
+      "targetHandle": "input-0"
+    },
+    {
+      "id": "cf8a2da2-9bf7-48dc-8510-ed32e263bc2f",
+      "source": "ae7dce81-09ae-4141-b2fb-87afd1522e1b",
+      "target": "bbf141ff-3383-4319-ba0f-9b3b422f0fa8",
+      "type": "workflowEdge",
+      "targetHandle": "input-0"
+    },
+    {
+      "id": "a72dbd64-20bc-4b4d-83ce-8b6794664e46",
+      "source": "f8d65666-4c06-470f-adde-1a82bab9f439",
+      "target": "bbf141ff-3383-4319-ba0f-9b3b422f0fa8",
+      "type": "workflowEdge",
+      "targetHandle": "input-1",
+      "sourceHandle": "output"
+    },
+    {
+      "id": "ae860abd-548f-4760-81c8-bc109c1ee7fe",
+      "source": "bbf141ff-3383-4319-ba0f-9b3b422f0fa8",
+      "target": "2deb870a-a45a-4371-831d-949a4061f342",
+      "type": "workflowEdge",
+      "targetHandle": "input-0",
+      "sourceHandle": "output"
+    },
+    {
+      "id": "b08d50d2-92c4-4e6c-96ee-4687c20e952d",
+      "source": "2deb870a-a45a-4371-831d-949a4061f342",
+      "target": "4414cebe-ba88-42f9-aa8a-dc53208bc13b",
+      "type": "workflowEdge",
+      "sourceHandle": "output"
+    }
+  ],
+  "createdAt": "2026-10-05T19:40:53.169Z",
+  "updatedAt": "2026-10-05T19:40:53.169Z"
+}
