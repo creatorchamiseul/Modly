@@ -26,7 +26,7 @@ import sys
 import bpy
 
 
-def parse_args(argv: list[str]) -> tuple[str, str, str, int, bool, float]:
+def parse_args(argv: list[str]) -> tuple[str, str, str, int, bool, float, str]:
     if "--" in argv:
         argv = argv[argv.index("--") + 1:]
     else:
@@ -34,12 +34,13 @@ def parse_args(argv: list[str]) -> tuple[str, str, str, int, bool, float]:
     if len(argv) < 3:
         raise SystemExit(
             "usage: blender --background --python quad_remesh.py -- "
-            "IN.glb OUT.glb OUT_quads.obj [target_quads] [transfer 0/1] [voxel_hint]"
+            "IN.glb OUT.glb OUT_quads.obj [target_quads] [transfer 0/1] [voxel_hint] [denoised_tex.png]"
         )
     target = int(argv[3]) if len(argv) > 3 and argv[3] else 0
     transfer = (argv[4] != "0") if len(argv) > 4 else True
     voxel_hint = float(argv[5]) if len(argv) > 5 and argv[5] else 0.0
-    return argv[0], argv[1], argv[2], target, transfer, voxel_hint
+    denoise_tex = argv[6] if len(argv) > 6 and argv[6] and argv[6] != "-" else ""
+    return argv[0], argv[1], argv[2], target, transfer, voxel_hint, denoise_tex
 
 
 def clear_scene() -> None:
@@ -105,8 +106,67 @@ def keep_main_parts(obj, min_faces_min: int = 64, fraction: float = 500.0) -> tu
     return len(parts), dropped
 
 
+def strip_base_sheet(obj) -> None:
+    """Delete the flat ground sheet AI exports sometimes bake into the base.
+
+    Detected as a fan of near-horizontal faces sitting in the lowest
+    millimetres of the model. Without this the voxel pass turns the sheet
+    into a giant slab that merges with the model (the cone touches it), and
+    the result renders with a 1x1 m "floor" stuck underneath.
+    """
+    import numpy as np
+
+    total_removed = 0
+    for _ in range(4):
+        me = obj.data
+        nv = len(me.vertices)
+        nf = len(me.polygons)
+        co = np.empty(nv * 3, dtype=np.float32)
+        me.vertices.foreach_get("co", co)
+        co = co.reshape(-1, 3)
+        zmin = float(co[:, 2].min())
+        height = max(float(co[:, 2].max()) - zmin, 1e-9)
+
+        centers = np.empty(nf * 3, dtype=np.float32)
+        me.polygons.foreach_get("center", centers)
+        centers = centers.reshape(-1, 3)
+        normals = np.empty(nf * 3, dtype=np.float32)
+        me.polygons.foreach_get("normal", normals)
+        normals = normals.reshape(-1, 3)
+
+        band = max(0.02 * height, 0.008)
+        radius = np.hypot(centers[:, 0], centers[:, 1])
+        low = centers[:, 2] < zmin + band
+        flat = np.abs(normals[:, 2]) > 0.6
+        hit = low & (flat | (radius > 0.1))
+        n_hit = int(hit.sum())
+        if n_hit < 50:  # nothing sheet-like left; done
+            break
+        if n_hit > 0.35 * nf:
+            print(f"QUADRS:: base sheet check matched {n_hit:,} of {nf:,} faces"
+                  f" — aborting removal", flush=True)
+            return
+        # Deselect everything first: a stale select-all from the weld pass would
+        # otherwise flush back in when entering edit mode and delete the whole mesh.
+        zeros = np.zeros(nv, dtype=bool)
+        me.vertices.foreach_set("select", zeros)
+        me.edges.foreach_set("select", np.zeros(len(me.edges), dtype=bool))
+        sel = np.zeros(nf, dtype=bool)
+        sel[hit] = True
+        me.polygons.foreach_set("select", sel)
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.delete(type="FACE")
+        bpy.ops.object.mode_set(mode="OBJECT")
+        total_removed += n_hit
+
+    if total_removed:
+        print(f"QUADRS:: removed base sheet ({total_removed:,} faces total)", flush=True)
+    else:
+        print("QUADRS:: no base sheet detected", flush=True)
+
+
 def main() -> None:
-    in_path, out_glb, out_obj, target, transfer, voxel_hint = parse_args(list(sys.argv))
+    in_path, out_glb, out_obj, target, transfer, voxel_hint, denoise_tex = parse_args(list(sys.argv))
     clear_scene()
     bpy.ops.import_scene.gltf(filepath=in_path)
 
@@ -130,9 +190,41 @@ def main() -> None:
     bpy.ops.mesh.normals_make_consistent(inside=False)
     bpy.ops.object.mode_set(mode="OBJECT")
 
+    # Drop the ground sheet first so the hole-fill below cannot resurrect it
+    # as a solid slab; then cap the swiss-cheese rims so the volume is solid.
+    strip_base_sheet(source)
+
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    try:
+        bpy.ops.mesh.fill_holes(sides=0)
+        bpy.ops.mesh.remove_doubles(threshold=1e-6)
+        bpy.ops.mesh.normals_make_consistent(inside=False)
+        print("QUADRS:: source hole-fill pass done", flush=True)
+    except Exception as exc:
+        print(f"QUADRS:: source hole fill skipped ({exc})", flush=True)
+    bpy.ops.object.mode_set(mode="OBJECT")
+
     image = base_colour_image(source.data.materials[0] if source.data.materials else None)
     print(f"QUADRS:: source {len(source.data.polygons):,} faces, "
           f"texture={'yes' if image is not None else 'no'}", flush=True)
+
+    # A smoothed stand-in of the source for the detail pass: the AI export's
+    # surface carries a high-frequency crinkle (a dimple field), and projecting
+    # straight onto it imprints that noise as pits. Macro shapes survive the
+    # smoothing; the crinkle does not.
+    proxy = source.copy()
+    proxy.data = source.data.copy()
+    proxy.name = "PROXY"
+    bpy.context.scene.collection.objects.link(proxy)
+    bpy.ops.object.select_all(action="DESELECT")
+    proxy.select_set(True)
+    bpy.context.view_layer.objects.active = proxy
+    pre_smooth = proxy.modifiers.new("pre-smooth", "SMOOTH")
+    pre_smooth.factor = 0.5
+    pre_smooth.iterations = 12
+    bpy.ops.object.modifier_apply(modifier=pre_smooth.name)
+    print("QUADRS:: smoothed proxy prepared (source denoise pass)", flush=True)
 
     quad = source.copy()
     quad.data = source.data.copy()
@@ -195,11 +287,11 @@ def main() -> None:
         quad.select_set(True)
         bpy.context.view_layer.objects.active = quad
         wrap = quad.modifiers.new("rewrap", "SHRINKWRAP")
-        wrap.target = source
+        wrap.target = proxy
         wrap.wrap_method = "NEAREST_SURFACEPOINT"
         wrap.offset = 0.0
         bpy.ops.object.modifier_apply(modifier=wrap.name)
-        print("QUADRS:: shrink-wrapped onto the original surface", flush=True)
+        print("QUADRS:: shrink-wrapped onto the smoothed proxy", flush=True)
     except Exception as exc:
         print(f"QUADRS:: shrinkwrap skipped ({exc})", flush=True)
 
@@ -271,8 +363,15 @@ def main() -> None:
             if node.type != "OUTPUT_MATERIAL":
                 enodes.remove(node)
         output = next(n for n in enodes if n.type == "OUTPUT_MATERIAL")
+        bake_image = image
+        if denoise_tex:
+            try:
+                bake_image = bpy.data.images.load(denoise_tex)
+                print(f"QUADRS:: using denoised source texture ({denoise_tex})", flush=True)
+            except Exception as exc:
+                print(f"QUADRS:: denoised texture load failed ({exc}); using the original", flush=True)
         tex = enodes.new("ShaderNodeTexImage")
-        tex.image = image
+        tex.image = bake_image
         tex.interpolation = "Closest"
         emission = enodes.new("ShaderNodeEmission")
         elinks.new(tex.outputs["Color"], emission.inputs["Color"])

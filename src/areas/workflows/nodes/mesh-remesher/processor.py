@@ -89,6 +89,47 @@ def _has_base_colour_texture(path: str) -> bool:
     return False
 
 
+def _denoise_source_texture(input_path: str, out_dir: Path) -> str:
+    """Save a median-filtered copy of the GLB's base-colour texture.
+
+    The AI texture stage leaves salt-and-pepper speckle all over the albedo;
+    baked onto the remesh it reads as pinholes. A median filter removes the
+    dots while keeping patterns (waffle lines, colour gradients) intact.
+    Returns the new PNG path, or "" when there is nothing to denoise.
+    """
+    try:
+        import io as _io
+        import struct as _struct
+        from PIL import Image, ImageFilter
+
+        data = Path(input_path).read_bytes()
+        if data[:4] != b"glTF":
+            return ""
+        length = _struct.unpack_from("<I", data, 12)[0]
+        doc = json.loads(data[20:20 + length])
+        offset = 20 + length
+        binary = b""
+        if offset < len(data):
+            blen = _struct.unpack_from("<I", data, offset)[0]
+            binary = data[offset + 8:offset + 8 + blen]
+        material = (doc.get("materials") or [{}])[0]
+        texture = (material.get("pbrMetallicRoughness") or {}).get("baseColorTexture")
+        if not texture:
+            return ""
+        img = doc["images"][doc["textures"][texture["index"]]["source"]]
+        view = doc["bufferViews"][img["bufferView"]]
+        start = view.get("byteOffset", 0)
+        payload = binary[start:start + view["byteLength"]]
+        picture = Image.open(_io.BytesIO(payload)).convert("RGB")
+        picture = picture.filter(ImageFilter.MedianFilter(size=5))
+        out = out_dir / "source_denoised.png"
+        picture.save(out)
+        return str(out)
+    except Exception as exc:
+        log(f"Texture denoise skipped ({exc})")
+        return ""
+
+
 def _blender_env(blender: Path) -> dict:
     """Environment for Blender, keeping user files in the app folder tree.
 
@@ -390,10 +431,15 @@ def main() -> None:
     if mode == "sdf" and blender is not None:
         progress(15, "Quad remesh (Blender voxel)…")
         obj_path = str(out_dir / f"mesh-remesher-{stamp}_quads.obj")
+        denoised_texture = ""
+        if transfer_texture and _has_base_colour_texture(input_path):
+            progress(20, "Preparing texture denoise…")
+            denoised_texture = _denoise_source_texture(input_path, out_dir)
         try:
             _run_blender(blender, HERE / "quad_remesh.py",
                          [input_path, out_path, obj_path, target_count,
-                          "1" if transfer_texture else "0", 0.0],
+                          "1" if transfer_texture else "0", 0.0,
+                          denoised_texture or "-"],
                          out_dir, "quad-remesh")
             if Path(out_path).is_file() and Path(out_path).stat().st_size > 0:
                 log(f"Output: {out_path}")
