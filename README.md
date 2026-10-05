@@ -80,3 +80,9 @@
 **사용법**: 이미지→3D 생성 체인 뒤에 `Finish (Game-Ready)` 노드를 붙이고, `Source Photo` 슬롯에 같은 입력 이미지를 연결하세요. 파라미터: Target Face Count(기본 40,000) · Voxel Size(0.004) · Atlas Size(2048) · Pixel Match(auto/off) · Bake Surface Detail · Compress Textures. `data\workflows`의 **"샘플 03 · 이미지→3D→게임레디 마감"** 을 참고하세요.
 
 **Blender 4.2+ 필요 (리토폴로지·베이크 단계)**: 자동으로 아래를 찾습니다 — `MODLY_BLENDER` 환경변수 → 앱 폴더의 `.tools\blender-*\blender.exe`(이 저장소에서는 `D:\modly\.tools\blender-4.5.14-windows-x64\`) → PATH → `C:\Program Files\Blender Foundation\`. Blender는 [blender.org](https://www.blender.org/download/)에서 무료로 받습니다 (자동 설치하지 않음 — 포터블 .zip을 `.tools`에 풀어두면 끝).
+
+### 리메쉬 노드 (mesh-remesher) — 쿼드 리메쉬 업데이트
+- **SDF(기본) 모드**: Blender 복셀 리메쉬로 **완전한 쿼드(100%)의 닫힌 스킨**을 만들고, 원본 텍스처를 새 UV로 **베이크 전이**합니다. (Blender 4.2+ 필요 — 없으면 내장 numpy 리메쉬로 폴백)
+- 결과물: `mesh-remesher-<ts>.glb` (파이프라인 표준) + `mesh-remesher-<ts>_quads.obj` (**진짜 쿼드 메쉬** — GLB는 포맷 규칙상 삼각형으로 저장됩니다)
+- 형상 보존: 복셀 리메쉬 → **Shrinkwrap(원본 표면 리프로젝션)** → 라이트 데노이즈 → 스무스 셰이딩. 열린 파편 메쉬(경계 엣지 수십만 개)도 하나의 닫힌 표면으로 재구성됩니다.
+- Triangle/Quad-Dominant 모드도 Blender가 있으면 텍스처 전이를 수행합니다.

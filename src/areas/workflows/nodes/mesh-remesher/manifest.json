@@ -3,9 +3,9 @@
   "name": "Mesh Remesher",
   "type": "process",
   "entry": "processor.py",
-  "version": "1.1.0",
+  "version": "1.3.0",
   "author": "Modly",
-  "description": "Hole-safe remeshing: pre-cleans topology, feature-preserving isotropic remesh, then repairs and closes any pinholes. Quad mode is quad-dominant cleanup, not character retopology.",
+  "description": "Hole-free remeshing. SDF mode rebuilds a closed, all-quad skin with Blender's voxel remesher and bakes the source texture onto it (needs Blender; without it, Modly's own numpy remesher runs instead — triangles, no texture). Triangle/Quad-Dominant are pymeshlab routes with pre-cleaning, a hole guard and (with Blender) texture transfer.",
   "nodes": [
     {
       "id": "remesh",
@@ -17,13 +17,42 @@
           "id": "mode",
           "label": "Mode",
           "type": "select",
-          "default": "triangle",
+          "default": "sdf",
           "options": [
+            { "value": "sdf",      "label": "SDF Quad (Hole-Free)" },
             { "value": "triangle", "label": "Triangle" },
             { "value": "quad",     "label": "Quad-Dominant" },
             { "value": "none",     "label": "None" }
           ],
-          "tooltip": "Triangle produces a clean uniform triangulation. Quad-Dominant attempts more regular polygon flow for cleanup, but it is not character-oriented retopology. None passes the mesh through unchanged."
+          "tooltip": "SDF rebuilds the surface as a closed, all-quad skin with Blender's voxel remesher (the output cannot tear; the source texture is baked onto it). Very thin features below one voxel get fused — raise the target count to keep them. Triangle produces a clean uniform triangulation; Quad-Dominant attempts more regular polygon flow. None passes the mesh through unchanged."
+        },
+        {
+          "id": "target_count",
+          "label": "Target Face Count",
+          "type": "int",
+          "default": 50000,
+          "min": 0,
+          "max": 2000000,
+          "tooltip": "Desired face count of the remeshed skin. In SDF mode this is the quad count (the GLB stores two triangles per quad; the true quad mesh is also saved as *_quads.obj). The voxel size is solved from it in up to three tries. 0 = automatic (SDF keeps the input's density)."
+        },
+        {
+          "id": "sdf_resolution",
+          "label": "SDF Resolution",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 256,
+          "tooltip": "Built-in numpy SDF fallback only (ignored when Blender handles the SDF route): voxel grid subdivisions along the model's longest side. 0 = automatic from Target Face Count. 256 is slow and memory-hungry."
+        },
+        {
+          "id": "smoothing",
+          "label": "SDF Smoothing",
+          "type": "float",
+          "default": 0.6,
+          "min": 0.0,
+          "max": 1.0,
+          "step": 0.05,
+          "tooltip": "Built-in numpy SDF fallback only (ignored when Blender handles the SDF route): how much to relax the voxel staircase before projecting back onto the original surface."
         },
         {
           "id": "target_edge_length",
@@ -33,16 +62,7 @@
           "min": 0.0,
           "max": 1.0,
           "step": 0.001,
-          "tooltip": "Target edge length in world units. Set to 0 for automatic (keeps the input's sampling density, derived from surface area)."
-        },
-        {
-          "id": "target_count",
-          "label": "Target Face Count",
-          "type": "int",
-          "default": 50000,
-          "min": 0,
-          "max": 2000000,
-          "tooltip": "Desired total face count. When above 0, the remesh targets this count (exact when reducing; approximate when increasing). Set 0 to use Target Edge Length instead."
+          "tooltip": "Triangle/Quad mode: target edge length in world units. 0 = automatic (keeps the input's sampling density, derived from surface area). Ignored in SDF mode."
         },
         {
           "id": "quality",
@@ -54,14 +74,29 @@
             { "value": "standard", "label": "Standard" },
             { "value": "fine",     "label": "Fine" }
           ],
-          "tooltip": "Remeshing passes. Draft (3) is fast but leaves jagged triangles; Standard (6) suits previews; Fine (10) converges to the most even, precise triangulation."
+          "tooltip": "Triangle/Quad mode: remeshing passes. Draft (3) is fast but leaves jagged triangles; Standard (6) suits previews; Fine (10) converges to the most even triangulation. Ignored in SDF mode."
+        },
+        {
+          "id": "transfer_texture",
+          "label": "Transfer Texture",
+          "type": "select",
+          "default": "yes",
+          "options": [
+            { "value": "yes", "label": "Yes" },
+            { "value": "no", "label": "No" }
+          ],
+          "tooltip": "Bake the input's base-colour texture onto the remeshed surface (needs Blender; skipped when the input has no texture). The GLB is triangulated by the format — the true quad mesh of the SDF route is saved beside it as *_quads.obj."
         },
         {
           "id": "preserve_features",
           "label": "Preserve Features",
-          "type": "boolean",
-          "default": true,
-          "tooltip": "Keep sharp edges (creases above 30°) crisp while remeshing. Turn off for organic meshes where every edge is smooth."
+          "type": "select",
+          "default": "yes",
+          "options": [
+            { "value": "yes", "label": "Yes" },
+            { "value": "no", "label": "No" }
+          ],
+          "tooltip": "Triangle/Quad mode: keep sharp edges (creases above 30°) crisp while remeshing. Ignored in SDF mode."
         },
         {
           "id": "weld_distance",
@@ -71,14 +106,18 @@
           "min": 0.0,
           "max": 1.0,
           "step": 0.001,
-          "tooltip": "Vertices closer than this are merged before remeshing, sealing the hairline cracks GLB exports leave along UV seams — a major source of remesh holes. 0 = automatic (0.1% of the model's diagonal). Raise slightly if holes persist, lower if thin details melt."
+          "tooltip": "Vertices closer than this are merged before remeshing, sealing the hairline cracks GLB exports leave along UV seams. 0 = automatic (0.1% of the model's diagonal). Applies to the numpy/pymeshlab routes and their pre-clean."
         },
         {
           "id": "fill_holes",
           "label": "Fill Holes",
-          "type": "boolean",
-          "default": true,
-          "tooltip": "Close small holes before remeshing and after every destructive pass, so the output stays watertight."
+          "type": "select",
+          "default": "yes",
+          "options": [
+            { "value": "yes", "label": "Yes" },
+            { "value": "no", "label": "No" }
+          ],
+          "tooltip": "Close small holes before remeshing and after every destructive pass (numpy/pymeshlab routes). SDF mode always fills — its sign field needs a closed mesh, and closing holes is the point of this mode."
         },
         {
           "id": "max_hole_size",
