@@ -122,6 +122,38 @@ def _denoise_source_texture(input_path: str, out_dir: Path) -> str:
         payload = binary[start:start + view["byteLength"]]
         picture = Image.open(_io.BytesIO(payload)).convert("RGB")
         picture = picture.filter(ImageFilter.MedianFilter(size=5))
+        # Median removes salt-and-pepper, but the AI albedo also carries soft
+        # dark blotches and bright specks that bake as pinholes ("holes frozen
+        # into the texture"). Replace pixels that sit much darker/lighter than
+        # their local median so the surface reads as clean paint.
+        try:
+            import numpy as _np
+
+            def _box_mean(arr, r):
+                p = _np.pad(arr, r, mode="edge")
+                c = p.cumsum(axis=0).cumsum(axis=1)
+                c = _np.pad(c, ((1, 0), (1, 0)))
+                k = 2 * r + 1
+                s = c[k:, k:] - c[:-k, k:] - c[k:, :-k] + c[:-k, :-k]
+                return s / float(k * k)
+
+            a = _np.asarray(picture).astype(_np.float32)
+            replaced = 0
+            for delta, r in ((20.0, 4), (13.0, 6), (9.0, 8)):
+                lum = a.mean(axis=2)
+                m = _box_mean(lum, r)
+                speck = (lum + delta < m) & (m > 60.0)
+                if not speck.any() or speck.mean() > 0.25:
+                    continue
+                for c in range(3):
+                    cm = _box_mean(a[:, :, c], r + 2)
+                    a[:, :, c] = _np.where(speck, cm, a[:, :, c])
+                replaced += int(speck.sum())
+            if replaced:
+                log(f"Albedo speck cleanup: {replaced} px")
+            picture = Image.fromarray(_np.clip(a, 0, 255).astype("uint8"))
+        except Exception as exc:
+            log(f"Speck cleanup skipped ({exc})")
         out = out_dir / "source_denoised.png"
         picture.save(out)
         return str(out)

@@ -165,6 +165,93 @@ def strip_base_sheet(obj) -> None:
         print("QUADRS:: no base sheet detected", flush=True)
 
 
+def repair_cap_uvs(obj, nv_before: int, nl_before: int) -> int:
+    """Continue the rim UVs across the faces that fill_holes just added.
+
+    Blender leaves fill faces at UV (0,0); baked, they sample one atlas corner
+    texel and read as flat blocks or holes in the final texture. Each new loop
+    copies the UV of the nearest pre-fill vertex, so the texture smears
+    smoothly from the rim across the cap instead.
+    """
+    import numpy as np
+    import mathutils
+
+    me = obj.data
+    uv = me.uv_layers.active
+    nloop = len(me.loops)
+    if uv is None or nloop <= nl_before:
+        return 0
+    lv = np.empty(nloop, dtype=np.int32)
+    me.loops.foreach_get("vertex_index", lv)
+    uvflat = np.empty(nloop * 2, dtype=np.float32)
+    uv.data.foreach_get("uv", uvflat)
+    uvflat = uvflat.reshape(-1, 2)
+
+    uniq, first_idx = np.unique(lv[:nl_before], return_index=True)
+    first_uv = uvflat[first_idx]
+
+    nv = min(nv_before, len(me.vertices))
+    kd = mathutils.kdtree.KDTree(nv)
+    for i in range(nv):
+        kd.insert(me.vertices[i].co, i)
+    kd.balance()
+
+    repaired = 0
+    for li in range(nl_before, nloop):
+        _, nidx, _ = kd.find(me.vertices[int(lv[li])].co)
+        pos = int(np.searchsorted(uniq, nidx))
+        if pos < len(uniq) and uniq[pos] == nidx:
+            uvflat[li] = first_uv[pos]
+            repaired += 1
+    if repaired:
+        uv.data.foreach_set("uv", uvflat.reshape(-1))
+    return repaired
+
+
+def _box_mean(a, r: int):
+    import numpy as np
+
+    p = np.pad(a, r, mode="edge")
+    c = p.cumsum(axis=0).cumsum(axis=1)
+    c = np.pad(c, ((1, 0), (1, 0)))
+    k = 2 * r + 1
+    s = c[k:, k:] - c[:-k, k:] - c[k:, :-k] + c[:-k, :-k]
+    return s / float(k * k)
+
+
+def despeckle_image(img, passes=((20.0, 4), (13.0, 6), (9.0, 8))) -> int:
+    """Remove the dark dot-noise the albedo carries (they read as pits/holes).
+
+    The AI albedo is sprinkled with sub-pixel dark specks; baked 1:1 onto the
+    new surface every one of them shows up as a tiny pit. Replace pixels that
+    sit much darker than their local box mean with that mean, escalating in
+    three radius steps. Works on the image's float buffer, in place.
+    """
+    import numpy as np
+
+    w, h = img.size
+    px = np.empty(w * h * 4, dtype=np.float32)
+    img.pixels.foreach_get(px)
+    rgba = px.reshape(h, w, 4)
+    rgb = rgba[:, :, :3]
+    total = 0
+    for delta, r in passes:
+        lum = rgb.mean(axis=2)
+        m = _box_mean(lum, r)
+        speck = (lum + delta / 255.0 < m) & (m > 0.23)
+        if not speck.any():
+            continue
+        if speck.mean() > 0.25:
+            continue  # runaway guard
+        for c in range(3):
+            cm = _box_mean(rgb[:, :, c], r + 2)
+            rgb[:, :, c] = np.where(speck, cm, rgb[:, :, c])
+        total += int(speck.sum())
+    if total:
+        img.pixels.foreach_set(rgba.reshape(-1))
+    return total
+
+
 def main() -> None:
     in_path, out_glb, out_obj, target, transfer, voxel_hint, denoise_tex = parse_args(list(sys.argv))
     clear_scene()
@@ -197,13 +284,27 @@ def main() -> None:
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
     try:
+        me = source.data
+        nv_before, nl_before = len(me.vertices), len(me.loops)
         bpy.ops.mesh.fill_holes(sides=0)
+        bpy.ops.object.mode_set(mode="OBJECT")
+        # Fresh fill faces arrive with UV (0,0) — baked, they sample the atlas
+        # corner and read as flat blocks/holes in the texture. Continue the
+        # rim's UVs across them so the pattern smears smoothly instead.
+        repaired = repair_cap_uvs(source, nv_before, nl_before)
+        if repaired:
+            print(f"QUADRS:: cap UV repair: {repaired:,} loops continued from the rim", flush=True)
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="SELECT")
         bpy.ops.mesh.remove_doubles(threshold=1e-6)
         bpy.ops.mesh.normals_make_consistent(inside=False)
         print("QUADRS:: source hole-fill pass done", flush=True)
     except Exception as exc:
         print(f"QUADRS:: source hole fill skipped ({exc})", flush=True)
-    bpy.ops.object.mode_set(mode="OBJECT")
+    try:
+        bpy.ops.object.mode_set(mode="OBJECT")
+    except Exception:
+        pass
 
     image = base_colour_image(source.data.materials[0] if source.data.materials else None)
     print(f"QUADRS:: source {len(source.data.polygons):,} faces, "
@@ -334,7 +435,7 @@ def main() -> None:
         bpy.context.view_layer.objects.active = quad
         bpy.ops.object.mode_set(mode="EDIT")
         bpy.ops.mesh.select_all(action="SELECT")
-        bpy.ops.uv.smart_project(angle_limit=math.radians(89.0), island_margin=0.0002)
+        bpy.ops.uv.smart_project(angle_limit=math.radians(89.0), island_margin=0.003)
         bpy.ops.object.mode_set(mode="OBJECT")
 
         # Bake at twice the source resolution (capped at 4096): the new atlas
@@ -372,12 +473,17 @@ def main() -> None:
                 print(f"QUADRS:: denoised texture load failed ({exc}); using the original", flush=True)
         tex = enodes.new("ShaderNodeTexImage")
         tex.image = bake_image
-        tex.interpolation = "Closest"
+        tex.interpolation = "Linear"
         emission = enodes.new("ShaderNodeEmission")
         elinks.new(tex.outputs["Color"], emission.inputs["Color"])
         elinks.new(emission.outputs["Emission"], output.inputs["Surface"])
-        source.data.materials.clear()
-        source.data.materials.append(emit)
+        # Bake *from the smoothed proxy*, not the raw crinkled source: the quad
+        # surface was shrink-wrapped onto the proxy, so ray distances stay tiny
+        # and the bake cannot miss (misses were coming out as black gashes —
+        # the "old holes frozen into the texture" the viewer shows). The proxy
+        # carries the same atlas (now including the repaired cap UVs).
+        proxy.data.materials.clear()
+        proxy.data.materials.append(emit)
 
         scene = bpy.context.scene
         scene.render.engine = "CYCLES"
@@ -389,17 +495,28 @@ def main() -> None:
         bake = scene.render.bake
         bake.use_selected_to_active = True
         bake.margin = 16
+        try:
+            bake.margin_type = "ADJACENT_FACES"
+        except Exception:
+            pass
         bake.use_clear = True
-        reach = max(quad.dimensions) * 0.02
+        reach = max(quad.dimensions) * 0.03
         bake.cage_extrusion = reach
-        bake.max_ray_distance = reach * 2.0
+        bake.max_ray_distance = reach * 3.0
 
         bpy.ops.object.select_all(action="DESELECT")
-        source.select_set(True)
+        proxy.select_set(True)
         quad.select_set(True)
         bpy.context.view_layer.objects.active = quad
         print("QUADRS:: baking texture transfer ...", flush=True)
         bpy.ops.object.bake(type="EMIT")
+
+        try:
+            removed = despeckle_image(target_image)
+            if removed:
+                print(f"QUADRS:: albedo despeckle: {removed:,} dot pixels cleaned", flush=True)
+        except Exception as exc:
+            print(f"QUADRS:: albedo despeckle skipped ({exc})", flush=True)
 
         principled = dnodes.new("ShaderNodeBsdfPrincipled")
         doutput = next(n for n in dnodes if n.type == "OUTPUT_MATERIAL")
